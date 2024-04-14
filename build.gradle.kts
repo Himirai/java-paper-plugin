@@ -1,8 +1,7 @@
 import net.minecrell.pluginyml.bukkit.BukkitPluginDescription
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	kotlin("jvm") version "1.9.21"
+	java
 	id("com.github.johnrengelman.shadow") version "8.1.1"
 	id("net.minecrell.plugin-yml.bukkit") version "0.6.0"
 }
@@ -20,11 +19,11 @@ repositories {
 
 dependencies {
 	compileOnly("io.papermc.paper:paper-api:1.19-R0.1-SNAPSHOT")
-
+	compileOnly("org.projectlombok:lombok:1.18.32")
+	annotationProcessor("org.projectlombok:lombok:1.18.32")
 	testImplementation(platform("org.junit:junit-bom:5.10.2"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-	testImplementation(kotlin("test"))
 	testImplementation("com.github.seeseemelk:MockBukkit-v1.19:3.0.0")
 }
 
@@ -62,9 +61,5 @@ tasks {
 
 	build {
 		dependsOn(shadowJar)
-	}
-
-	withType<KotlinCompile> {
-		kotlinOptions.jvmTarget = "17"
 	}
 }
