@@ -24,10 +24,6 @@ dependencies {
 	paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
 	compileOnly("org.projectlombok:lombok:1.18.32")
 	annotationProcessor("org.projectlombok:lombok:1.18.32")
-	testImplementation(platform("org.junit:junit-bom:5.10.2"))
-	testImplementation("org.junit.jupiter:junit-jupiter")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-	testImplementation("com.github.seeseemelk:MockBukkit-v1.20:3.86.1")
 }
 
 java {
@@ -70,12 +66,5 @@ tasks {
 
 	assemble {
 		dependsOn(reobfJar)
-	}
-
-	test {
-		useJUnitPlatform()
-		testLogging {
-			events("passed", "skipped", "failed")
-		}
 	}
 }
