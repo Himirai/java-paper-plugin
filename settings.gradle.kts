@@ -1,1 +1,1 @@
-rootProject.name = "java-paper-plugin"
+rootProject.name = "SamplePlugin"

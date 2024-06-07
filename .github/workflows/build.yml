@@ -1,44 +1,111 @@
-name: Java CI with Gradle
-concurrency: production
+name: Build, Release, Deploy Project
+
 on:
   push:
-    branches: [ "production" ]
+    branches:
+      - production
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
-      #      - name: Whoami
-      #        run: whoami
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+
       - name: Make gradlew Executable
         run: chmod +x ./gradlew
+
       - name: Gradle Build
         run: ./gradlew build
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= DOCKER IMAGE PUSH START =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#      - name: Docker Login                                                                                     #
-#        uses: docker/login-action@v2.1.0                                                                       #
-#        with:                                                                                                  #
-#          username: ${{ secrets.NEXUS_USERNAME }}                                                              #
-#          password: ${{ secrets.NEXUS_PASSWORD }}                                                              #
-#          registry: ${{ secrets.NEXUS_DOCKER_URL }}                                                            #
-#      - name: Push Docker image                                                                                #
-#        uses: docker/build-push-action@v3.2.0                                                                  #
-#        with:                                                                                                  #
-#          push: true                                                                                           #
-#          context: your-context                                                                                #
-#          tags: my-server:port/path:latest                                                                     #
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  DOCKER IMAGE PUSH END  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= DEPLOY PLUGIN START =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#      - name: Deploy                                                                                           #
-#        run: mkdir -p /path/to/plugins && cp build/libs/SamplePlugin                                           #
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  DEPLOY PLUGIN END  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-artifacts
+          path: build/libs/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: build-artifacts
+          path: build/libs/
+
+      - name: Make gradlew Executable
+        run: chmod +x ./gradlew
+
+      - name: Extract Version
+        id: extract_version
+        run: |
+          version=$(./gradlew properties -q | grep "^version: " | awk '{print $2}')
+          echo "PROJECT_VERSION=$version" >> $GITHUB_ENV
+
+      - name: Extract Project Name
+        id: extract_project_name
+        run: |
+          project_name=$(./gradlew properties -q | grep "^name: " | awk '{print $2}')
+          echo "PROJECT_NAME=$project_name" >> $GITHUB_ENV
+
+      - name: Create Github Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.PROJECT_VERSION }}
+          release_name: ${{ env.PROJECT_NAME }} v(${{ env.PROJECT_VERSION }})
+          draft: false
+          prerelease: false
+
+      - name: Upload sources JAR to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/libs/v${{ env.PROJECT_VERSION }}/${{ env.PROJECT_NAME }}-sources.jar
+          asset_name: ${{ env.PROJECT_NAME }}-v${{ env.PROJECT_VERSION }}-sources.jar
+          asset_content_type: application/java-archive
+
+      - name: Upload remapped JAR to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/libs/v${{ env.PROJECT_VERSION }}/${{ env.PROJECT_NAME }}-remapped.jar
+          asset_name: ${{ env.PROJECT_NAME }}-v${{ env.PROJECT_VERSION }}.jar
+          asset_content_type: application/java-archive
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nothing
+        run: echo "Nothing happened, yay!!"
